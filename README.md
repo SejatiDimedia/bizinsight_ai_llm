@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/bizinsight_master_cover.jpg" alt="BizInsight AI Master Portfolio Cover" width="100%" style="border-radius: 12px; margin-bottom: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.4);" />
+
 # 🧠 BizInsight AI
 ### *Autonomous Business Intelligence Multi-Agent System*
 
@@ -37,6 +39,10 @@
 
 ## 💡 Tentang Proyek
 
+<div align="center">
+  <img src="assets/bi_comparison.jpg" alt="Traditional BI vs BizInsight AI Multi-Agent" width="100%" style="border-radius: 8px; margin: 15px 0;" />
+</div>
+
 **BizInsight AI** adalah platform Business Intelligence generasi baru yang didorong oleh arsitektur **Autonomous Multi-Agent**. Sistem ini dirancang untuk menjembatani kesenjangan antara tim bisnis (non-teknis) dengan database relasional (PostgreSQL). 
 
 Pengguna cukup mengajukan pertanyaan dalam **Bahasa Indonesia** sehari-hari (misal: *"Berapa omset kategori Elektronik di kuartal pertama 2026?"*), dan agen-agen AI akan berkolaborasi untuk menyusun query SQL, memvalidasi keamanan transaksi, mengeksekusi data, merangkum wawasan komersial, serta menyajikan grafik interaktif secara otomatis.
@@ -57,6 +63,10 @@ Pengguna cukup mengajukan pertanyaan dalam **Bahasa Indonesia** sehari-hari (mis
 
 ## 🏗️ Arsitektur Multi-Agent
 
+<div align="center">
+  <img src="assets/architecture_diagram.jpg" alt="BizInsight AI System Architecture Diagram" width="100%" style="border-radius: 8px; margin: 15px 0;" />
+</div>
+
 Sistem ini menerapkan pola arsitektur **Multi-Agent terdistribusi** di mana setiap agen memiliki spesialisasi dan tanggung jawab tunggal (*Single Responsibility Principle*):
 
 ```mermaid
@@ -74,7 +84,11 @@ graph TD
     Conv -->|Jawaban Teks + Chart + Tabel| UI[Gradio 6 Interactive Dashboard]
 ```
 
-### Spesifikasi Agen:
+### Spesifikasi Agen (The Specialized AI Squad):
+
+<div align="center">
+  <img src="assets/agent_squad.jpg" alt="BizInsight AI Specialized Agents Squad" width="100%" style="border-radius: 8px; margin: 15px 0;" />
+</div>
 | Agen | Kode Warna Terminal | Peran & Tanggung Jawab |
 | :--- | :--- | :--- |
 | **`SQLAgent`** | `CYAN` | Menerjemahkan natural language ke SQL PostgreSQL, validasi sintaks, eksekusi database, dan *self-healing*. |
