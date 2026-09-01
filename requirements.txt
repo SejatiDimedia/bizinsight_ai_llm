@@ -1,0 +1,17 @@
+# LLM Gateway
+litellm>=1.40.0
+
+# Database
+psycopg2-binary>=2.9.9
+
+# Data validation & models
+pydantic>=2.7.0
+
+# Web Dashboard & Charts
+gradio>=4.38.0
+plotly>=5.22.0
+pandas>=2.2.0
+
+# Environment & Utilities
+python-dotenv>=1.0.1
+faker>=25.0.0
