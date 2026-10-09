@@ -5,12 +5,13 @@
 
 ## 1. Executive Summary & Vision
 **BizInsight AI** adalah sistem Multi-Agent cerdas yang memungkinkan pengguna non-teknis untuk **menganalisis database bisnis menggunakan bahasa natural** tanpa perlu menulis SQL. Sistem ini secara otomatis:
-1. Menerima pertanyaan bisnis dalam Bahasa Indonesia/Inggris dari pengguna.
-2. Menganalisis schema database dan **mengonversi pertanyaan menjadi SQL query** menggunakan LLM (*Text-to-SQL*).
-3. **Mengeksekusi query ke PostgreSQL** dan memvalidasi hasilnya dengan *Structured Outputs* Pydantic.
-4. **Menganalisis & merangkum data** menjadi insight bisnis yang actionable menggunakan LLM.
-5. **Menghasilkan visualisasi chart otomatis** (bar, line, pie, scatter, heatmap) menggunakan Plotly.
-6. Menyajikan semua hasil dalam **dashboard interaktif berbasis Gradio** dengan chat interface, live chart, tabel data, dan SQL preview.
+1. Menerima pertanyaan bisnis dalam Bahasa Indonesia/Inggris dari pengguna melalui UI modern berbasis **React & Tailwind CSS**.
+2. Berkomunikasi dengan backend via **FastAPI** yang mengekspos REST endpoints dan streaming log.
+3. Menganalisis schema database dan **mengonversi pertanyaan menjadi SQL query** menggunakan LLM (*Text-to-SQL*).
+4. **Mengeksekusi query ke PostgreSQL** dan memvalidasi hasilnya dengan *Structured Outputs* Pydantic.
+5. **Menganalisis & merangkum data** menjadi insight bisnis yang actionable menggunakan LLM.
+6. **Menghasilkan visualisasi chart otomatis** (bar, line, pie, scatter, heatmap) menggunakan Plotly.
+7. Menyajikan seluruh hasil (jawaban natural, kartu KPI, chart interaktif, tabel data, dan preview query SQL) dalam antarmuka web modern responsif (**React + Tailwind CSS**), dengan dashboard monolitik Gradio tetap tersedia sebagai alternatif pengujian cepat.
 
 ---
 
@@ -18,7 +19,11 @@
 
 ```mermaid
 graph TD
-    User[Pengguna: Pertanyaan Bisnis Natural Language] --> Conv[ConversationalAgent: ReAct Tool Calling Loop]
+    User[Pengguna: Pertanyaan Bisnis Natural Language] --> ReactUI[Frontend: React + Tailwind CSS Dashboard]
+    ReactUI -->|HTTP POST /api/chat| FastAPI[Backend: FastAPI Service]
+    FastAPI -->|Streaming Logs / SSE| ReactUI
+    FastAPI --> Framework[BIAgentFramework: Orchestrator]
+    Framework --> Conv[ConversationalAgent: ReAct Tool Calling Loop]
     
     subgraph Agent_System [Multi-Agent BI System]
         Conv -->|Pertanyaan + Schema Context| SQL[SQLAgent: Text-to-SQL Generator]
@@ -27,8 +32,10 @@ graph TD
         Analyst -->|Analyzed Data + Insight| Chart[ChartAgent: Auto Visualization Selector]
     end
     
-    Conv -->|Final Answer + Chart + Table| UI[Gradio BI Dashboard]
-    UI --> History[(Chat History per Session)]
+    Conv -->|Final Answer + Chart JSON + Table| Framework
+    Framework -->|BI Response Dict| FastAPI
+    FastAPI -->|JSON Response| ReactUI
+    FastAPI --> History[(Session Chat Histories)]
     
     subgraph PostgreSQL_DB [PostgreSQL: E-Commerce BI Database]
         T1[categories: 10 kategori produk]
