@@ -224,30 +224,46 @@ erDiagram
 
 ---
 
-## 6. Antarmuka Pengguna & Dashboard (`app.py`)
-- **Framework**: Gradio Web UI + Plotly Charts.
-- **Fitur Utama**:
+## 6. Antarmuka Pengguna & Arsitektur API (React, Tailwind CSS, & FastAPI)
+Sistem BizInsight AI mengadopsi arsitektur *decoupled* modern (pemisahan frontend dan backend):
+- **Frontend UI**: **React** (Vite) + **Tailwind CSS** + Lucide Icons + Plotly / Recharts.
+- **Backend API**: **FastAPI** + **Uvicorn** sebagai gateway antarmuka yang membungkus `BIAgentFramework`.
+- **Legacy / Prototype UI**: Gradio Web UI (`app.py`) tetap dipertahankan untuk pengujian cepat standalone.
 
-### Tab 1: 💬 AI Business Analyst Chat
-  1. **Chat Interface**: Textbox untuk mengetik pertanyaan bisnis + streaming response dari LLM.
-  2. **Auto Chart Panel**: Area Plotly chart yang di-update otomatis setiap kali ada visualisasi baru.
-  3. **Data Table Panel**: Tabel scrollable menampilkan raw data hasil query SQL.
-  4. **SQL Preview Code Block**: Menampilkan SQL query yang di-generate oleh AI (read-only, untuk transparansi & edukasi).
-  5. **Quick Suggestion Buttons**: Tombol-tombol pertanyaan cepat yang bisa diklik langsung:
-     - *"📈 Revenue bulan ini"*
-     - *"🏆 Top 10 produk terlaris"*
-     - *"📊 Tren penjualan 6 bulan"*
-     - *"🗺️ Penjualan per wilayah"*
-     - *"💰 Produk margin tertinggi"*
+### 6.1 Backend API Specification (`api.py` / FastAPI)
+FastAPI bertindak sebagai jembatan antara klien frontend (React) dengan orkestrator multi-agen (`BIAgentFramework`).
 
-### Tab 2: 🖥️ Real-time Agent Log Stream
-  1. **Live Streaming Log Terminal**: Log berwarna ANSI dari setiap agen di-stream ke komponen HTML secara asinkron menggunakan *worker thread* dan `queue.Queue`.
-  2. **Agent Activity Indicator**: Menampilkan agent mana yang sedang aktif bekerja.
+| Method | Endpoint | Request Body / Query | Response / Deskripsi |
+|:---|:---|:---|:---|
+| `POST` | `/api/chat` | `{ "message": str, "session_id": str }` | Mengirim pertanyaan bisnis, menjalankan ReAct loop, dan mengembalikan `{ "reply": str, "sql_query": str, "raw_data": dict, "chart": dict, "chart_type": str }` |
+| `GET` | `/api/stats` | - | Mengembalikan ringkasan metrik KPI toko `{ "total_products": int, "total_customers": int, "completed_orders": int, "total_revenue": float }` |
+| `GET` | `/api/tables/{table_name}` | `limit: int = 10` | Mengembalikan sample data baris dan kolom dari tabel yang dipilih |
+| `GET` | `/api/schema` | - | Mengembalikan teks skema DDL database lengkap |
+| `POST` | `/api/chat/reset` | `{ "session_id": str }` | Menghapus konteks memori percakapan untuk session tertentu |
+| `GET` | `/api/logs/stream` | - | Streaming log eksekusi agen secara *real-time* via Server-Sent Events (SSE) |
 
-### Tab 3: 📋 Database Explorer
-  1. **Schema Viewer**: Menampilkan struktur tabel, kolom, dan tipe data.
-  2. **Sample Data Viewer**: Preview 10 baris pertama dari setiap tabel.
-  3. **Stats Cards**: Total records, total revenue, total customers, total orders.
+### 6.2 Frontend UI Specification (`frontend/` - React + Tailwind CSS)
+Aplikasi frontend dibuat responsif, modern, dan modular menggunakan React dan utilitas Tailwind CSS.
+
+1. **Dashboard Header & KPI Overview**:
+   - Kartu metrik live: Total Revenue (Omset Rp), Total Pelanggan, Total Produk, dan Pesanan Selesai.
+   - Indikator status koneksi backend & pilihan reset percakapan.
+2. **AI Business Analyst Chat Interface**:
+   - Chat list responsif (Bubble percakapan Pengguna & Asisten AI dengan Markdown rendering).
+   - Input prompt dengan shortcut pertanyaan instan (*Quick Suggestion Pills*: Revenue bulanan, Top 10 produk, Tren 6 bulan, dll).
+   - Status visualizer ReAct (*loading/agent thinking state*).
+3. **Interactive Visualization & Data Artifacts**:
+   - **Auto Chart View**: Render grafik interaktif (Plotly / Recharts) yang menyesuaikan tipe chart (Bar, Line, Pie, Scatter).
+   - **SQL Query Preview**: Tampilan kode SQL dengan *syntax highlighting* dan tombol salin (*copy-to-clipboard*).
+   - **Tabular Data Viewer**: Grid tabel interaktif untuk melihat data mentah hasil eksekusi query.
+4. **Real-time Agent Execution Terminal (Drawer/Panel)**:
+   - Menangkap stream SSE dari backend untuk menampilkan *thought process* dan log aktivitas agen dengan warna ANSI / styling modern.
+5. **Database Explorer Tab**:
+   - Inspeksi struktur skema DDL dan data sampel tabel database e-commerce tanpa perlu query manual.
+
+### 6.3 Standalone Prototype UI (`app.py` - Gradio Fallback)
+Sebagai opsi alternatif untuk eksperimen lokal instan tanpa menjalankan frontend terpisah:
+- Gradio Web UI terintegrasi dengan 3 tab: Chat Analyst, Real-time Log Stream, dan Database Explorer.
 
 ---
 
@@ -311,12 +327,14 @@ Output: Summary + Data table (tanpa chart)
 | Komponen | Pilihan Gratisan |
 |:---|:---|
 | **LLM Text-to-SQL & Analysis** | Google Gemini 3.6 Flash (Free API) / Groq GPT-OSS-120B (Free Tier) |
+| **Backend API** | FastAPI + Uvicorn (Python, Free & Open Source) |
+| **Frontend UI** | React + Tailwind CSS + Vite + Lucide React (Free & Open Source) |
 | **Database** | PostgreSQL Lokal (Free & Open Source) |
 | **Structured Output** | Pydantic v2 (Python, gratis) |
-| **UI Dashboard** | Gradio (Free & Open Source) |
-| **Visualization** | Plotly (Free & Open Source) |
+| **UI Dashboard Alternatif** | Gradio (Free & Open Source, opsi fallback prototyping) |
+| **Visualization** | Plotly / React-Plotly / Recharts (Free & Open Source) |
 | **DB Connector** | psycopg2 (Free & Open Source) |
-| **Bahasa & Environment** | Python 3.10+ dengan `uv` atau `pip` |
+| **Bahasa & Environment** | Python 3.10+ (uv/pip) & Node.js 18+ (npm/vite) |
 
 ---
 
@@ -326,14 +344,15 @@ Output: Summary + Data table (tanpa chart)
 bizinsight_ai/
 ├── .env                          # API keys + DATABASE_URL
 ├── .env.example                  # Template .env tanpa secret values
-├── .gitignore                    # Ignore .env, __pycache__, venv
-├── requirements.txt              # Semua dependency Python
+├── .gitignore                    # Ignore .env, __pycache__, node_modules
+├── requirements.txt              # Dependency Python (termasuk FastAPI, Uvicorn)
 ├── README.md                     # Dokumentasi project
 │
-├── seed_database.py              # Script untuk generate & populate dummy data ke PostgreSQL
+├── seed_database.py              # Script populate dummy data ke PostgreSQL
 ├── db.py                         # Database connection pool, helper functions, schema reader
-├── app.py                        # Gradio Dashboard (main entry point UI)
 ├── bi_agent_framework.py         # Framework orchestrator (init agents, manage sessions)
+├── api.py                        # FastAPI Backend (REST API + SSE log streaming untuk React)
+├── app.py                        # Gradio Dashboard (prototype / fallback UI)
 │
 ├── agents/
 │   ├── __init__.py
@@ -343,6 +362,23 @@ bizinsight_ai/
 │   ├── analyst_agent.py          # AnalystAgent: Data summarization & insight generation
 │   ├── chart_agent.py            # ChartAgent: Auto chart type selection + Plotly figure builder
 │   └── conversational_agent.py   # ConversationalAgent: ReAct tool calling loop + chat history
+│
+├── frontend/                     # React + Tailwind CSS Web Application
+│   ├── package.json              # Dependencies frontend (react, lucide-react, plotly.js, tailwindcss)
+│   ├── vite.config.js            # Konfigurasi Vite & proxy backend
+│   ├── tailwind.config.js        # Konfigurasi Tailwind CSS
+│   ├── index.html
+│   └── src/
+│       ├── App.jsx               # Layout utama dashboard
+│       ├── components/
+│       │   ├── Header.jsx        # Topbar & KPI metrics overview
+│       │   ├── ChatWindow.jsx    # Chat interaktif & AI suggestions
+│       │   ├── Visualizer.jsx    # Chart renderer & Raw data viewer
+│       │   ├── SqlViewer.jsx     # SQL code block viewer
+│       │   ├── LogDrawer.jsx     # Real-time SSE Agent execution log terminal
+│       │   └── DbExplorer.jsx    # Schema DDL & sample table data viewer
+│       └── services/
+│           └── api.js            # Client fetcher untuk API FastAPI
 │
 └── PRD.md                        # Dokumen ini
 ```
