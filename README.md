@@ -237,11 +237,20 @@ docker compose up -d
 python seed_database.py
 ```
 
-### 6. Jalankan Web Dashboard
+### 6. Jalankan Backend API (FastAPI)
+Untuk melayani antarmuka React via REST API & SSE:
+```bash
+python api.py
+# atau: uvicorn api:app --reload --port 8000
+```
+- Akses API root di **`http://127.0.0.1:8000`**.
+- Dokumentasi interaktif Swagger UI di **`http://127.0.0.1:8000/docs`**.
+
+*(Opsional) Jika ingin menjalankan dashboard monolitik Gradio untuk pengujian cepat:*
 ```bash
 python app.py
 ```
-Akses aplikasi melalui browser di **`http://127.0.0.1:7860`**.
+Akses di **`http://127.0.0.1:7860`**.
 
 ---
 
@@ -271,7 +280,8 @@ bizinsight_ai_llm/
 ├── db.py                     # Modul koneksi PostgreSQL, eksekusi aman & pembaca skema
 ├── seed_database.py          # Script pembuat DDL & generator data dummy e-commerce 2026
 ├── bi_agent_framework.py     # Framework orchestrator utama (Lazy initialization & helpers)
-├── app.py                    # Web Dashboard interaktif (Gradio 6 + Plotly)
+├── api.py                    # Backend FastAPI (REST API & Real-time SSE streaming)
+├── app.py                    # Web Dashboard alternatif (Gradio 6 + Plotly)
 │
 └── agents/                   # Modul agen cerdas
     ├── __init__.py           # Package initializer

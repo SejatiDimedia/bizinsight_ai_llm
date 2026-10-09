@@ -7,6 +7,11 @@ psycopg2-binary>=2.9.9
 # Data validation & models
 pydantic>=2.7.0
 
+# Backend API (FastAPI)
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+sse-starlette>=2.1.0
+
 # Web Dashboard & Charts
 gradio>=4.38.0
 plotly>=5.22.0
