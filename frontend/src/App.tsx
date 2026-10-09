@@ -219,7 +219,7 @@ export function App() {
   };
 
   return (
-    <div className="flex h-screen flex-col bg-[#090d16] text-slate-100 antialiased selection:bg-indigo-500 selection:text-white">
+    <div className="flex h-screen flex-col bg-slate-950 text-white antialiased">
       {/* Top Header */}
       <Header
         stats={stats}
