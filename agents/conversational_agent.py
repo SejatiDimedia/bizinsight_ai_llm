@@ -1,3 +1,4 @@
+import contextvars
 import json
 import os
 from typing import Any, Dict, List, Optional
@@ -10,6 +11,11 @@ from agents.chart_agent import ChartAgent
 from agents.sql_agent import SQLAgent
 
 load_dotenv(override=True)
+
+# ContextVar untuk mengisolasi session_id secara thread-safe saat tool calling dieksekusi
+_active_session_ctx: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "active_session_ctx", default="default"
+)
 
 
 class ConversationalAgent(Agent):
@@ -49,15 +55,26 @@ class ConversationalAgent(Agent):
         # Menyimpan chat history per session_id agar bisa follow-up question
         self.chat_histories: Dict[str, List[Dict[str, Any]]] = {}
 
-        # Cache artefak hasil eksekusi turn terakhir untuk UI
-        self.last_artifacts: Dict[str, Any] = {
+        # Cache artefak hasil eksekusi turn per session_id (Thread-safe & Concurrency-safe)
+        self.session_artifacts: Dict[str, Dict[str, Any]] = {}
+
+        self.log(f"Inisialisasi berhasil dengan ReAct Tools.")
+
+    @property
+    def last_artifacts(self) -> Dict[str, Any]:
+        """Backward-compatible property untuk mengakses artefak sesi aktif."""
+        s_id = _active_session_ctx.get()
+        return self.session_artifacts.get(s_id, {
             "sql_query": "",
             "raw_data": None,
             "figure": None,
             "chart_type": "none",
-        }
+        })
 
-        self.log(f"Inisialisasi berhasil dengan ReAct Tools.")
+    @last_artifacts.setter
+    def last_artifacts(self, val: Dict[str, Any]):
+        s_id = _active_session_ctx.get()
+        self.session_artifacts[s_id] = val
 
     # =========================================================================
     # 🛠️ DAFTAR TOOLS YANG BISA DIPANGGIL LLM
@@ -192,123 +209,129 @@ class ConversationalAgent(Agent):
         3. Maksimal 4 kali iterasi tool calling.
         4. Mengembalikan jawaban final beserta artefak grafik, SQL, dan data tabel.
         """
-        # Reset artefak untuk giliran (turn) ini
-        self.last_artifacts = {
-            "sql_query": "",
-            "raw_data": None,
-            "figure": None,
-            "chart_type": "none",
-        }
+        token = _active_session_ctx.set(session_id)
+        try:
+            # Reset artefak untuk sesi dan giliran (turn) ini
+            self.session_artifacts[session_id] = {
+                "sql_query": "",
+                "raw_data": None,
+                "figure": None,
+                "chart_type": "none",
+            }
 
-        # Inisialisasi percakapan untuk session_id jika baru
-        if session_id not in self.chat_histories:
-            self.chat_histories[session_id] = [
-                {
-                    "role": "system",
-                    "content": (
-                        "Anda adalah 'BizInsight AI', asisten Business Intelligence dan Data Analyst "
-                        "profesional untuk toko online e-commerce Indonesia.\n"
-                        "Tugas Anda adalah menjawab pertanyaan bisnis pengguna berbasis data nyata.\n"
-                        "ATURAN:\n"
-                        "1. Selalu utamakan memanggil tool `query_database` untuk mengambil data faktual.\n"
-                        "2. Jika data memiliki dimensi waktu (bulan/tanggal) atau komparasi kategori, "
-                        "panggil juga tool `generate_chart` agar user mendapatkan visualisasi.\n"
-                        "3. Gunakan data tersebut untuk menyajikan jawaban yang ringkas, ramah, "
-                        "dan profesional dalam Bahasa Indonesia.\n"
-                        "4. Jangan berhalusinasi data angka jika belum memanggil tool database."
-                    ),
-                }
-            ]
+            # Inisialisasi percakapan untuk session_id jika baru
+            if session_id not in self.chat_histories:
+                self.chat_histories[session_id] = [
+                    {
+                        "role": "system",
+                        "content": (
+                            "Anda adalah 'BizInsight AI', asisten Business Intelligence dan Data Analyst "
+                            "profesional untuk toko online e-commerce Indonesia.\n"
+                            "Tugas Anda adalah menjawab pertanyaan bisnis pengguna berbasis data nyata.\n"
+                            "ATURAN:\n"
+                            "1. Selalu utamakan memanggil tool `query_database` untuk mengambil data faktual.\n"
+                            "2. Jika data memiliki dimensi waktu (bulan/tanggal) atau komparasi kategori, "
+                            "panggil juga tool `generate_chart` agar user mendapatkan visualisasi.\n"
+                            "3. Gunakan data tersebut untuk menyajikan jawaban yang ringkas, ramah, "
+                            "dan profesional dalam Bahasa Indonesia.\n"
+                            "4. Jangan berhalusinasi data angka jika belum memanggil tool database."
+                        ),
+                    }
+                ]
 
-        history = self.chat_histories[session_id]
-        history.append({"role": "user", "content": user_message})
+            history = self.chat_histories[session_id]
+            history.append({"role": "user", "content": user_message})
 
-        tools = self.get_tool_definitions()
+            tools = self.get_tool_definitions()
 
-        # Jaga agar panjang histori tidak membengkak (system prompt + 8 pesan terakhir)
-        active_messages = [history[0]] + history[-8:]
+            # Jaga agar panjang histori tidak membengkak (system prompt + 8 pesan terakhir)
+            active_messages = [history[0]] + history[-8:]
 
-        for model in self.models_to_try:
-            try:
-                # ReAct Iteration Loop (Maksimal 4 iterasi tool-calling)
-                for step in range(4):
-                    self.log(f"ReAct Iterasi #{step + 1} menggunakan {model}...")
-                    response = completion(
-                        model=model,
-                        messages=active_messages,
-                        tools=tools,
-                        tool_choice="auto",
-                    )
+            for model in self.models_to_try:
+                try:
+                    # ReAct Iteration Loop (Maksimal 4 iterasi tool-calling)
+                    for step in range(4):
+                        self.log(f"ReAct Iterasi #{step + 1} menggunakan {model}...")
+                        response = completion(
+                            model=model,
+                            messages=active_messages,
+                            tools=tools,
+                            tool_choice="auto",
+                        )
 
-                    choice = response.choices[0]
-                    msg = choice.message
+                        choice = response.choices[0]
+                        msg = choice.message
 
-                    # Kasus 1: LLM selesai dan memberikan jawaban teks langsung ke pengguna
-                    if not getattr(msg, "tool_calls", None):
-                        final_reply = msg.content or "Selesai dianalisis."
-                        history.append({"role": "assistant", "content": final_reply})
-                        self.log(f"ReAct Selesai dalam {step + 1} langkah.")
-                        return {
-                            "reply": final_reply,
-                            "sql_query": self.last_artifacts["sql_query"],
-                            "raw_data": self.last_artifacts["raw_data"],
-                            "figure": self.last_artifacts["figure"],
-                            "chart_type": self.last_artifacts["chart_type"],
-                        }
+                        # Kasus 1: LLM selesai dan memberikan jawaban teks langsung ke pengguna
+                        if not getattr(msg, "tool_calls", None):
+                            final_reply = msg.content or "Selesai dianalisis."
+                            history.append({"role": "assistant", "content": final_reply})
+                            self.log(f"ReAct Selesai dalam {step + 1} langkah.")
+                            artifacts = self.session_artifacts[session_id]
+                            return {
+                                "reply": final_reply,
+                                "sql_query": artifacts["sql_query"],
+                                "raw_data": artifacts["raw_data"],
+                                "figure": artifacts["figure"],
+                                "chart_type": artifacts["chart_type"],
+                            }
 
-                    # Kasus 2: LLM memutuskan untuk memanggil satu atau beberapa tools
-                    active_messages.append(msg)
-                    for tc in msg.tool_calls:
-                        fn_name = tc.function.name
-                        try:
-                            fn_args = json.loads(tc.function.arguments) if tc.function.arguments else {}
-                        except Exception:
-                            fn_args = {}
+                        # Kasus 2: LLM memutuskan untuk memanggil satu atau beberapa tools
+                        active_messages.append(msg)
+                        for tc in msg.tool_calls:
+                            fn_name = tc.function.name
+                            try:
+                                fn_args = json.loads(tc.function.arguments) if tc.function.arguments else {}
+                            except Exception:
+                                fn_args = {}
 
-                        self.log(f"👉 Tool Call: '{fn_name}' dengan argumen: {fn_args}")
+                            self.log(f"👉 Tool Call: '{fn_name}' dengan argumen: {fn_args}")
 
-                        # Eksekusi tool yang sesuai
-                        if fn_name == "query_database":
-                            tool_result = self.tool_query_database(**fn_args)
-                        elif fn_name == "generate_chart":
-                            tool_result = self.tool_generate_chart(**fn_args)
-                        elif fn_name == "analyze_data":
-                            tool_result = self.tool_analyze_data(**fn_args)
-                        else:
-                            tool_result = json.dumps({"error": f"Tool '{fn_name}' tidak dikenal."})
+                            # Eksekusi tool yang sesuai
+                            if fn_name == "query_database":
+                                tool_result = self.tool_query_database(**fn_args)
+                            elif fn_name == "generate_chart":
+                                tool_result = self.tool_generate_chart(**fn_args)
+                            elif fn_name == "analyze_data":
+                                tool_result = self.tool_analyze_data(**fn_args)
+                            else:
+                                tool_result = json.dumps({"error": f"Tool '{fn_name}' tidak dikenal."})
 
-                        active_messages.append({
-                            "role": "tool",
-                            "tool_call_id": tc.id,
-                            "content": tool_result,
-                        })
+                            active_messages.append({
+                                "role": "tool",
+                                "tool_call_id": tc.id,
+                                "content": tool_result,
+                            })
 
-                # Jika batas 4 langkah terlampaui, paksa LLM merangkum jawaban akhir
-                self.log("Batas 4 iterasi ReAct tercapai, meminta kesimpulan akhir...")
-                final_completion = completion(model=model, messages=active_messages)
-                final_reply = final_completion.choices[0].message.content or "Analisis telah selesai."
-                history.append({"role": "assistant", "content": final_reply})
+                    # Jika batas 4 langkah terlampaui, paksa LLM merangkum jawaban akhir
+                    self.log("Batas 4 iterasi ReAct tercapai, meminta kesimpulan akhir...")
+                    final_completion = completion(model=model, messages=active_messages)
+                    final_reply = final_completion.choices[0].message.content or "Analisis telah selesai."
+                    history.append({"role": "assistant", "content": final_reply})
 
-                return {
-                    "reply": final_reply,
-                    "sql_query": self.last_artifacts["sql_query"],
-                    "raw_data": self.last_artifacts["raw_data"],
-                    "figure": self.last_artifacts["figure"],
-                    "chart_type": self.last_artifacts["chart_type"],
-                }
+                    artifacts = self.session_artifacts[session_id]
+                    return {
+                        "reply": final_reply,
+                        "sql_query": artifacts["sql_query"],
+                        "raw_data": artifacts["raw_data"],
+                        "figure": artifacts["figure"],
+                        "chart_type": artifacts["chart_type"],
+                    }
 
-            except Exception as e:
-                self.log(f"⚠️ ReAct loop error pada model {model}: {e}. Mencoba fallback berikutnya...")
-                continue
+                except Exception as e:
+                    self.log(f"⚠️ ReAct loop error pada model {model}: {e}. Mencoba fallback berikutnya...")
+                    continue
 
-        # Jika semua model failover gagal
-        return {
-            "reply": "Maaf, terjadi kendala saat menghubungkan ke seluruh model AI. Silakan periksa koneksi atau coba beberapa saat lagi.",
-            "sql_query": "",
-            "raw_data": None,
-            "figure": None,
-            "chart_type": "none",
-        }
+            # Jika semua model failover gagal
+            return {
+                "reply": "Maaf, terjadi kendala saat menghubungkan ke seluruh model AI. Silakan periksa koneksi atau coba beberapa saat lagi.",
+                "sql_query": "",
+                "raw_data": None,
+                "figure": None,
+                "chart_type": "none",
+            }
+        finally:
+            _active_session_ctx.reset(token)
 
 
 if __name__ == "__main__":
