@@ -58,12 +58,12 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 flex h-80 flex-col border-t border-slate-800 bg-slate-950 shadow-2xl">
+    <div className="fixed inset-x-0 bottom-0 z-50 flex h-80 flex-col border-t border-white/[0.12] bg-[#0c101a]/95 backdrop-blur-3xl shadow-2xl">
       {/* Terminal Title Bar */}
-      <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-4 py-2">
+      <div className="flex items-center justify-between border-b border-white/[0.08] bg-white/[0.02] px-4 py-2.5">
         <div className="flex items-center space-x-2.5">
           <div className="flex items-center space-x-1.5 text-xs font-semibold text-slate-200">
-            <Terminal className="h-3.5 w-3.5 text-blue-400" />
+            <Terminal className="h-3.5 w-3.5 text-slate-300" />
             <span>Multi-Agent Live Execution Terminal</span>
           </div>
           <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">

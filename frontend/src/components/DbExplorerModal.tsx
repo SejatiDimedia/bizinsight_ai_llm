@@ -69,13 +69,13 @@ export const DbExplorerModal: React.FC<DbExplorerModalProps> = ({ isOpen, onClos
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xl"
     >
-      <div className="flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border border-slate-800 bg-slate-950 shadow-2xl">
+      <div className="flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/[0.12] bg-[#0c101a]/90 shadow-2xl backdrop-blur-3xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-5 py-3">
+        <div className="flex items-center justify-between border-b border-white/[0.08] bg-white/[0.02] px-5 py-3.5">
           <div className="flex items-center space-x-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded border border-slate-800 bg-slate-950 text-blue-400">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/[0.1] bg-white/[0.06] text-slate-200">
               <Database className="h-4 w-4" />
             </div>
             <div>

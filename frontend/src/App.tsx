@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AmbientBackground } from './components/AmbientBackground';
 import { ArtifactViewer } from './components/ArtifactViewer';
 import { ChatWindow } from './components/ChatWindow';
 import { DbExplorerModal } from './components/DbExplorerModal';
@@ -130,52 +131,53 @@ export function App() {
   const handleSendMessage = async (userText: string) => {
     if (!userText.trim() || isSubmitting) return;
 
-    const tempUserMsg: ChatMessageItem = {
-      id: `msg-${Date.now()}-user`,
+    const userMsgId = `msg-${Date.now()}-u`;
+    const newMsg: ChatMessageItem = {
+      id: userMsgId,
       role: 'user',
       content: userText,
       timestamp: new Date().toISOString(),
     };
 
-    setMessages((prev) => [...prev, tempUserMsg]);
+    setMessages((prev) => [...prev, newMsg]);
     setIsSubmitting(true);
 
     try {
       const res = await sendChatMessage(userText, activeSessionId);
 
       const assistantMsg: ChatMessageItem = {
-        id: `msg-${Date.now()}-assistant`,
+        id: `msg-${Date.now()}-a`,
         role: 'assistant',
+        content: '',
         reply: res.reply,
+        timestamp: new Date().toISOString(),
         sql_query: res.sql_query,
         raw_data: res.raw_data,
         chart: res.chart,
         chart_type: res.chart_type,
-        timestamp: new Date().toISOString(),
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
 
-      // Automatically display newly generated artifact in right panel
+      // If response has chart/sql, auto-activate it in artifact panel
       if (res.chart || res.sql_query || res.raw_data) {
         setActiveArtifact({
           messageId: assistantMsg.id,
           chart: res.chart,
-          chartType: res.chart_type,
-          sqlQuery: res.sql_query,
+          chartType: res.chart_type || 'none',
+          sqlQuery: res.sql_query ?? null,
           rawData: res.raw_data,
         });
       }
 
-      // Refresh session list to update titles/counts
-      loadSessionsList();
-      // Silently refresh KPI stats
-      fetchStats().then((s) => s?.stats && setStats(s.stats)).catch(() => {});
-    } catch (error: any) {
+      // Refresh session list to show updated titles
+      await loadSessionsList();
+    } catch (err: any) {
       const errMsg: ChatMessageItem = {
-        id: `msg-${Date.now()}-error`,
+        id: `msg-${Date.now()}-err`,
         role: 'assistant',
-        reply: `⚠️ Terjadi kendala saat memproses: ${error.message}`,
+        content: '',
+        reply: `⚠️ Gagal memproses permintaan: ${err?.message || 'Server error'}`,
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errMsg]);
@@ -218,50 +220,63 @@ export function App() {
     }
   };
 
+  const hasArtifacts = Boolean(activeArtifact.chart || activeArtifact.sqlQuery || activeArtifact.rawData);
+
   return (
-    <div className="flex h-screen flex-col bg-slate-950 text-white antialiased">
-      {/* Top Header */}
-      <Header
-        stats={stats}
-        health={health}
-        onRefreshStats={loadHealthAndStats}
-        onToggleDbExplorer={() => setIsDbExplorerOpen(true)}
-        onToggleLogDrawer={() => setIsLogDrawerOpen((prev) => !prev)}
-        isLogDrawerOpen={isLogDrawerOpen}
-        isLoadingStats={isLoadingStats}
+    <div className="relative flex h-screen w-screen overflow-hidden text-white antialiased">
+      {/* Monochromatic Frosted Glass Ambient Lighting Layer */}
+      <AmbientBackground />
+
+      {/* Left Sidebar (Full height) */}
+      <Sidebar
+        sessions={sessions}
+        activeSessionId={activeSessionId}
+        onSelectSession={setActiveSessionId}
+        onNewSession={handleNewSession}
+        onDeleteSession={handleDeleteSession}
+        onNavigateHome={handleNewSession}
+        onOpenDbExplorer={() => setIsDbExplorerOpen(true)}
       />
 
-      {/* Main Workspace: Sidebar + Chat + Artifact Viewer */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Sidebar (Sessions) */}
-        <Sidebar
-          sessions={sessions}
-          activeSessionId={activeSessionId}
-          onSelectSession={setActiveSessionId}
-          onNewSession={handleNewSession}
-          onDeleteSession={handleDeleteSession}
+      {/* Main Right Area: Header on top, Content below */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Top Header Floating Controls */}
+        <Header
+          stats={stats}
+          health={health}
+          onRefreshStats={loadHealthAndStats}
+          onToggleDbExplorer={() => setIsDbExplorerOpen(true)}
+          onToggleLogDrawer={() => setIsLogDrawerOpen((prev) => !prev)}
+          isLogDrawerOpen={isLogDrawerOpen}
+          isLoadingStats={isLoadingStats}
         />
 
-        {/* Center: Chat Window */}
-        <main className="flex flex-1 flex-col overflow-hidden border-r border-slate-800/80">
-          <ChatWindow
-            messages={messages}
-            isSubmitting={isSubmitting}
-            onSendMessage={handleSendMessage}
-            onSelectMessageArtifact={handleSelectMessageArtifact}
-            selectedMessageId={activeArtifact.messageId}
-          />
-        </main>
+        {/* Center Workspace: Chat / Home + Optional Side Artifact Panel */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Main Chat / Home Area */}
+          <main className="flex flex-1 flex-col overflow-hidden">
+            <ChatWindow
+              messages={messages}
+              stats={stats}
+              isSubmitting={isSubmitting}
+              onSendMessage={handleSendMessage}
+              onSelectMessageArtifact={handleSelectMessageArtifact}
+              selectedMessageId={activeArtifact.messageId}
+            />
+          </main>
 
-        {/* Right: Artifact Viewer (Chart, SQL, Raw Data) */}
-        <section className="hidden w-[460px] shrink-0 flex-col overflow-hidden p-3 lg:flex xl:w-[540px]">
-          <ArtifactViewer
-            chart={activeArtifact.chart}
-            chartType={activeArtifact.chartType}
-            sqlQuery={activeArtifact.sqlQuery}
-            rawData={activeArtifact.rawData}
-          />
-        </section>
+          {/* Right Artifact Panel: Shown when in active conversation and artifact exists */}
+          {messages.length > 0 && hasArtifacts && (
+            <aside className="hidden w-[460px] shrink-0 flex-col overflow-hidden p-3.5 lg:flex xl:w-[540px]">
+              <ArtifactViewer
+                chart={activeArtifact.chart}
+                chartType={activeArtifact.chartType}
+                sqlQuery={activeArtifact.sqlQuery}
+                rawData={activeArtifact.rawData}
+              />
+            </aside>
+          )}
+        </div>
       </div>
 
       {/* Slide-over Terminal Log Drawer (SSE Stream) */}
