@@ -30,3 +30,50 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.4);
 }
+
+/* Custom styling for Assistant Markdown tables */
+.markdown-table-wrapper {
+  margin: 0.75rem 0;
+  overflow-x: auto;
+  border-radius: 0.375rem;
+  border: 1px solid #1e293b;
+  background-color: #0b1120;
+}
+
+.markdown-table-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.75rem;
+}
+
+.markdown-table-wrapper thead {
+  background-color: #0f172a;
+}
+
+.markdown-table-wrapper th {
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  border-bottom: 1px solid #1e293b;
+  white-space: nowrap;
+}
+
+.markdown-table-wrapper td {
+  padding: 0.45rem 0.75rem;
+  color: #cbd5e1;
+  border-bottom: 1px solid rgba(30, 41, 59, 0.6);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.markdown-table-wrapper tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.markdown-table-wrapper tbody tr:hover {
+  background-color: rgba(30, 41, 59, 0.5);
+}

@@ -130,8 +130,22 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   ) : (
                     <div>
                       {/* Markdown AI Reply */}
-                      <div className="prose prose-invert prose-xs max-w-none prose-p:leading-relaxed prose-headings:font-semibold prose-a:text-blue-400">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      <div className="prose prose-invert prose-xs max-w-none text-xs leading-relaxed text-slate-200">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            table: ({ ...props }) => (
+                              <div className="markdown-table-wrapper">
+                                <table {...props} />
+                              </div>
+                            ),
+                            img: () => null,
+                            ul: ({ ...props }) => <ul className="list-disc pl-4 space-y-1 my-1.5 text-slate-300" {...props} />,
+                            ol: ({ ...props }) => <ol className="list-decimal pl-4 space-y-1 my-1.5 text-slate-300" {...props} />,
+                            li: ({ ...props }) => <li className="text-slate-300" {...props} />,
+                            strong: ({ ...props }) => <strong className="font-semibold text-white" {...props} />,
+                          }}
+                        >
                           {msg.reply || 'Sedang memproses...'}
                         </ReactMarkdown>
                       </div>
