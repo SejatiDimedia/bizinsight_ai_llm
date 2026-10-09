@@ -32,6 +32,36 @@ class ResetResponse(BaseModel):
     message: str = Field(..., description="Pesan konfirmasi")
 
 
+class ChatMessageItem(BaseModel):
+    id: str = Field(..., description="ID unik pesan")
+    role: str = Field(..., description="Peran: 'user' atau 'assistant'")
+    content: Optional[str] = Field(default=None, description="Pesan dari user")
+    reply: Optional[str] = Field(default=None, description="Balasan dari asisten AI")
+    sql_query: Optional[str] = Field(default=None, description="Query SQL yang dieksekusi")
+    raw_data: Optional[Dict[str, Any]] = Field(default=None, description="Data tabel hasil query")
+    chart: Optional[Dict[str, Any]] = Field(default=None, description="Data grafik Plotly")
+    chart_type: Optional[str] = Field(default="none", description="Tipe visualisasi chart")
+    timestamp: str = Field(..., description="Waktu ISO 8601 pesan dikirim")
+
+
+class ChatHistoryResponse(BaseModel):
+    success: bool = Field(..., description="Status keberhasilan")
+    session_id: str = Field(..., description="ID sesi percakapan")
+    messages: List[ChatMessageItem] = Field(default_factory=list, description="Daftar seluruh pesan dalam sesi")
+
+
+class SessionSummary(BaseModel):
+    session_id: str = Field(..., description="ID unik sesi percakapan")
+    title: str = Field(..., description="Judul atau cuplikan pertanyaan pertama sesi")
+    message_count: int = Field(..., description="Jumlah pesan dalam sesi")
+    last_active: str = Field(..., description="Waktu aktivitas terakhir ISO 8601")
+
+
+class SessionListResponse(BaseModel):
+    success: bool = Field(..., description="Status keberhasilan")
+    sessions: List[SessionSummary] = Field(default_factory=list, description="Daftar ringkasan sesi-sesi aktif")
+
+
 # =============================================================================
 # 📊 METRICS & DATABASE SCHEMAS
 # =============================================================================

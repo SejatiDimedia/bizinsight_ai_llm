@@ -3,39 +3,29 @@ import json
 import logging
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
 
 from backend.api.logging_stream import get_logs_history, sse_log_generator
 from backend.api.schemas import (
+    ChatHistoryResponse,
+    ChatMessageItem,
     ChatRequest,
     ChatResponse,
     LogsResponse,
     ResetRequest,
     ResetResponse,
+    SessionListResponse,
+    SessionSummary,
 )
-from backend.core.framework import BIAgentFramework
+from backend.core.framework import BIAgentFramework, serialize_plotly_figure
 
 router = APIRouter(tags=["Chat & AI Agents"])
 logger = logging.getLogger("BizInsight.ChatRouter")
 
 # Global Framework instance
 framework = BIAgentFramework()
-
-
-def serialize_plotly_figure(fig: Any) -> Optional[Dict[str, Any]]:
-    """Mengonversi objek Plotly Figure menjadi dictionary JSON yang aman untuk frontend React."""
-    if fig is None:
-        return None
-    try:
-        if hasattr(fig, "to_dict"):
-            return fig.to_dict()
-        elif hasattr(fig, "to_json"):
-            return json.loads(fig.to_json())
-    except Exception as e:
-        logger.warning(f"Gagal mengonversi Plotly figure ke dict: {e}")
-    return None
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -95,6 +85,40 @@ def reset_session(req: ResetRequest):
     except Exception as e:
         logger.error(f"Error resetting session {req.session_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/chat/history", response_model=ChatHistoryResponse)
+def get_chat_history(session_id: str = Query(default="default", description="ID sesi percakapan")):
+    """Mengambil riwayat percakapan lengkap (bubble chat, SQL, data, chart) untuk session_id."""
+    messages_raw = framework.get_session_history(session_id)
+    items = [ChatMessageItem(**m) for m in messages_raw]
+    return ChatHistoryResponse(
+        success=True,
+        session_id=session_id,
+        messages=items
+    )
+
+
+@router.get("/chat/sessions", response_model=SessionListResponse)
+def get_all_sessions():
+    """Mengambil daftar seluruh sesi percakapan aktif beserta ringkasannya."""
+    sessions_raw = framework.get_all_sessions()
+    items = [SessionSummary(**s) for s in sessions_raw]
+    return SessionListResponse(
+        success=True,
+        sessions=items
+    )
+
+
+@router.delete("/chat/sessions/{session_id}", response_model=ResetResponse)
+def delete_session(session_id: str):
+    """Menghapus sesi percakapan secara permanen."""
+    framework.delete_session(session_id)
+    return ResetResponse(
+        success=True,
+        session_id=session_id,
+        message=f"Sesi '{session_id}' berhasil dihapus."
+    )
 
 
 @router.get("/logs", response_model=LogsResponse)
