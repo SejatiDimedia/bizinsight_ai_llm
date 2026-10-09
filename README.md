@@ -6,9 +6,11 @@
 ### *Autonomous Business Intelligence Multi-Agent System*
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![Gradio](https://img.shields.io/badge/Gradio-6.0-FF7C00?style=for-the-badge&logo=gradio&logoColor=white)](https://gradio.app/)
 [![Plotly](https://img.shields.io/badge/Plotly-Interactive%20Charts-3F4F75?style=for-the-badge&logo=plotly&logoColor=white)](https://plotly.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
@@ -187,14 +189,19 @@ Aplikasi dibangun menggunakan **Gradio 6 Blocks** dengan 3 tab interaktif:
 
 ## 🛠️ Tech Stack
 
+### Backend
 - **Core Engine**: Python 3.10+
+- **API Framework**: FastAPI 0.115+ & Uvicorn (REST API + Server-Sent Events / SSE)
 - **LLM Gateway**: [LiteLLM](https://github.com/BerriAI/litellm) (Google Gemini 3.6 Flash / Groq Llama & GPT-OSS)
-- **Database Engine**: PostgreSQL 16 & `psycopg2-binary`
+- **Database Engine**: PostgreSQL 16 & `psycopg2-binary` (Threaded Connection Pool)
 - **Data Validation**: Pydantic v2
-- **UI Framework**: Gradio 6.0+
 - **Data Analytics & Viz**: Pandas & Plotly Express / Graph Objects
-- **Containerization**: Docker & Docker Compose
-- **Synthetic Data**: Faker (Locale: `id_ID`)
+
+### Frontend
+- **Framework**: React 19 + TypeScript (Vite 8)
+- **Styling**: Tailwind CSS v4
+- **Visualisasi**: Plotly.js (`plotly.js-dist-min`)
+- **Icons & Markdown**: Lucide React & React-Markdown + Remark-GFM
 
 ---
 
@@ -238,15 +245,24 @@ python seed_database.py
 ```
 
 ### 6. Jalankan Backend API (FastAPI)
-Untuk melayani antarmuka React via REST API & SSE:
+Untuk melayani REST API & Real-time Log Streaming:
 ```bash
 python api.py
-# atau: uvicorn api:app --reload --port 8000
+# atau: uvicorn backend.main:app --reload --port 8000
 ```
 - Akses API root di **`http://127.0.0.1:8000`**.
 - Dokumentasi interaktif Swagger UI di **`http://127.0.0.1:8000/docs`**.
 
-*(Opsional) Jika ingin menjalankan dashboard monolitik Gradio untuk pengujian cepat:*
+### 7. Jalankan Frontend UI (React + Vite)
+Buka terminal terpisah dan jalankan frontend server:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+- Akses dashboard React di **`http://localhost:5173`**.
+
+*(Opsional) Jika ingin menjalankan dashboard monolitik Gradio versi terdahulu:*
 ```bash
 python app.py
 ```
@@ -274,23 +290,51 @@ bizinsight_ai_llm/
 ├── .env.example              # Template variabel lingkungan
 ├── .gitignore                # Aturan isolasi file rahasia dan cache
 ├── docker-compose.yml        # Konfigurasi container PostgreSQL 16
-├── requirements.txt          # Daftar pustaka Python yang dibutuhkan
+├── requirements.txt          # Daftar pustaka Python backend
+├── PRD.md                    # Product Requirement Document
 ├── README.md                 # Dokumentasi teknis proyek
 │
-├── db.py                     # Modul koneksi PostgreSQL, eksekusi aman & pembaca skema
-├── seed_database.py          # Script pembuat DDL & generator data dummy e-commerce 2026
-├── bi_agent_framework.py     # Framework orchestrator utama (Lazy initialization & helpers)
-├── api.py                    # Backend FastAPI (REST API & Real-time SSE streaming)
-├── app.py                    # Web Dashboard alternatif (Gradio 6 + Plotly)
+├── backend/                  # Arsitektur Modular Backend FastAPI
+│   ├── config.py             # Centralized settings & environment loader
+│   ├── main.py               # FastAPI entrypoint, lifespan, CORS & routers
+│   ├── api/
+│   │   ├── schemas.py        # Pydantic v2 schemas (Chat, Sessions, Metrics, Database)
+│   │   ├── logging_stream.py # SSE broadcaster queue untuk streaming log multi-agent
+│   │   └── routers/          # Modular API routers: chat.py, metrics.py, database.py
+│   ├── core/
+│   │   └── framework.py      # BIAgentFramework core & session memory management
+│   └── database/
+│       └── connection.py     # ThreadedConnectionPool & query execution safety
 │
-└── agents/                   # Modul agen cerdas
-    ├── __init__.py           # Package initializer
-    ├── agent.py              # BaseAgent superclass (ANSI color logging terstandarisasi)
-    ├── models.py             # Pydantic v2 data contracts (SQLQuery, QueryResult, ChartConfig)
-    ├── sql_agent.py          # SQLAgent: Text-to-SQL + PostgreSQL executor + self-healing
-    ├── analyst_agent.py      # AnalystAgent: Business insights & tactical advice summarizer
-    ├── chart_agent.py        # ChartAgent: Auto-visualization selector & Plotly figure builder
-    └── conversational_agent.py # ConversationalAgent: ReAct tool calling loop & chat memory
+├── frontend/                 # Modern React 19 + TypeScript + Tailwind CSS UI
+│   ├── package.json          # Vite + React + Tailwind + Plotly dependencies
+│   ├── vite.config.ts        # Vite build config & proxy ke FastAPI (8000)
+│   └── src/
+│       ├── types/api.ts      # TypeScript interfaces API contracts
+│       ├── services/api.ts   # Client fetch & SSE streaming service
+│       ├── components/
+│       │   ├── Header.tsx           # KPI ticker & live DB status strip
+│       │   ├── Sidebar.tsx          # Session management & new chat button
+│       │   ├── ChatWindow.tsx       # Message list, quick prompts, Markdown render
+│       │   ├── ArtifactViewer.tsx   # Interactive Plotly chart, SQL & raw table view
+│       │   ├── PlotlyChart.tsx      # Responsive Plotly canvas renderer
+│       │   ├── LogDrawer.tsx        # Live terminal ANSI agent log stream drawer
+│       │   └── DbExplorerModal.tsx  # Interactive PostgreSQL table & DDL explorer
+│       └── App.tsx           # Main application state & responsive layout
+│
+├── agents/                   # Modul agen cerdas
+│   ├── agent.py              # BaseAgent superclass (ANSI color logging terstandarisasi)
+│   ├── models.py             # Pydantic v2 data contracts (SQLQuery, QueryResult, ChartConfig)
+│   ├── sql_agent.py          # SQLAgent: Text-to-SQL + PostgreSQL executor + self-healing
+│   ├── analyst_agent.py      # AnalystAgent: Business insights & tactical advice summarizer
+│   ├── chart_agent.py        # ChartAgent: Auto-visualization selector & Plotly figure builder
+│   └── conversational_agent.py # ConversationalAgent: ReAct tool calling loop & chat memory
+│
+├── api.py                    # Backward-compatible proxy to backend.main:app
+├── db.py                     # Backward-compatible proxy to backend.database.connection
+├── bi_agent_framework.py     # Backward-compatible proxy to backend.core.framework
+├── app.py                    # Web Dashboard alternatif (Gradio 6 + Plotly)
+└── seed_database.py          # Script pembuat DDL & generator data dummy e-commerce 2026
 ```
 
 ---
